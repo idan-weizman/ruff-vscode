@@ -29,10 +29,19 @@ export async function getExtensionSettings(namespace: string): Promise<ISettings
 
     return settings;
 }
+  
+function resolveWorkspace(resource?: Uri, value: string): string {
+    return value.replace('${workspaceFolder}', uri.fsPath);
+}
 
 export function getInterpreterFromSetting(namespace: string): string[] | undefined {
     const config = getConfiguration(namespace);
     return config.get<string[]>('interpreter');
+}
+
+export function getArgsFromSetting(namespace: string, resource?: Uri): string[] | undefined {
+    const config = getConfiguration(namespace, resource);
+    return config.get<string[]>('args');
 }
 
 export async function getWorkspaceSettings(namespace: string, resource?: Uri): Promise<Omit<ISettings, 'workspace'>> {
@@ -43,9 +52,14 @@ export async function getWorkspaceSettings(namespace: string, resource?: Uri): P
         interpreter = (await getInterpreterDetails(resource)).path;
     }
 
+    let args: string[] | undefined = getArgsFromSetting(namespace);
+    if (args !== undefined && interpreter.length !== 0) {
+        args = args.map((s) => resolveWorkspace(resource, s));
+    }
+
     return {
         logLevel: config.get<LoggingLevelSettingType>(`logLevel`) ?? 'error',
-        args: config.get<string[]>(`args`) ?? [],
+        args: args ?? [],
         path: config.get<string[]>(`path`) ?? [],
         interpreter: interpreter ?? [],
         importStrategy: config.get<string>(`importStrategy`) ?? 'fromEnvironment',
